@@ -437,11 +437,6 @@ impl Mappings {
         }
     }
 
-    pub async fn get_room_targets(&self) -> Vec<RoomTarget> {
-        let inner = self.inner.read().await;
-        inner.rooms.values().cloned().collect()
-    }
-
     pub async fn matrirc_query<S>(&self, message: S) -> Result<()>
     where
         S: Into<String>,
@@ -523,6 +518,11 @@ impl Mappings {
         } else {
             Err(Error::msg(format!("No such target {}", name)))
         }
+    }
+
+    pub async fn get_room_targets(&self) -> Vec<RoomTarget> {
+        let inner = self.inner.read().await;
+        inner.rooms.values().cloned().collect()
     }
 
     pub async fn sync_rooms(&self, matrirc: &Matrirc) -> Result<()> {

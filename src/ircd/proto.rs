@@ -193,13 +193,9 @@ pub async fn ircd_sync_read(
                     } else if msg == "hello" {
                         let response = privmsg("startpoint".to_string(), target.clone(), "world");
                         matrirc.irc().send(response).await?;
-                    } else if msg == "hello" {
-                        let response = privmsg("startpoint".to_string(), target.clone(), "world");
-                        matrirc.irc().send(response).await?;
                     } else if msg == "sync" {
                         match matrirc.mappings().sync_rooms(&matrirc).await {
                             Ok(_) => {
-                                // Push all channels to IRC client again
                                 let room_targets = matrirc.mappings().get_room_targets().await;
                                 for room_target in room_targets {
                                     let _ = room_target.join_channel(matrirc.irc()).await;
@@ -212,10 +208,43 @@ pub async fn ircd_sync_read(
                                 matrirc.irc().send(response).await?;
                             }
                         }
+                    } else if msg.starts_with("say ") {
+                        let message = msg.strip_prefix("say ").unwrap_or("").to_string();
+                        // Use the Text variant here
+                        if let Err(e) = matrirc
+                            .mappings()
+                            .to_matrix(&target, MatrixMessageType::Text, message)
+                            .await
+                        {
+                            warn!("Could not forward message: {:?}", e);
+                        }
                     }
-                    
+                } else {
+                    let (message_type, msg) = if let Some(emote) = msg.strip_prefix("\u{001}ACTION ") {
+                        (MatrixMessageType::Emote, emote.to_string())
+                    } else {
+                        (MatrixMessageType::Text, msg)
+                    };
+                    if let Err(e) = matrirc
+                        .mappings()
+                        .to_matrix(&target, message_type, msg)
+                        .await
+                    {
+                        warn!("Could not forward message: {:?}", e);
+                        if let Err(e2) = matrirc
+                            .irc()
+                            .send(notice(
+                                &matrirc.irc().nick,
+                                message.response_target().unwrap_or("matrirc"),
+                                format!("Could not forward: {}", e),
+                            ))
+                            .await
+                        {
+                            warn!("Furthermore, reply errored too: {:?}", e2);
+                        }
+                    }
                 }
-            }
+            },
             Command::NOTICE(target, msg) => {
                 if let Err(e) = matrirc
                     .mappings()
