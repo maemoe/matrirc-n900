@@ -10,7 +10,7 @@ mod outgoing;
 pub mod room_mappings;
 mod sync_reaction;
 mod sync_room_member;
-mod sync_room_message;
+pub mod sync_room_message;
 pub mod time;
 mod verification;
 

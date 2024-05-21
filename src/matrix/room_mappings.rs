@@ -206,7 +206,9 @@ impl RoomTarget {
                 pending_messages: RwLock::new(VecDeque::new()),
             })),
         }
+        
     }
+
     fn query<S: Into<String>>(target: S) -> Self {
         RoomTarget::new(RoomTargetType::Query, target)
     }
@@ -407,16 +409,21 @@ impl RoomTarget {
         self.send_text_to_irc(irc, IrcMessageType::Privmsg, &self.target().await, text)
             .await
     }
+
+    pub async fn join_channel(&self, irc: &IrcClient) -> bool {
+        self.join_chan(irc).await
+    }
 }
 
 impl Mappings {
     pub fn new(irc: IrcClient) -> Self {
         Mappings {
-            inner: MappingsInner::default().into(),
+            inner: RwLock::new(MappingsInner::default()),
             irc,
             mt: RoomTarget::query("matrirc"),
         }
     }
+
     pub async fn room_target(&self, room: &Room) -> RoomTarget {
         match self.try_room_target(room).await {
             Ok(target) => target,
@@ -429,6 +436,12 @@ impl Mappings {
             }
         }
     }
+
+    pub async fn get_room_targets(&self) -> Vec<RoomTarget> {
+        let inner = self.inner.read().await;
+        inner.rooms.values().cloned().collect()
+    }
+
     pub async fn matrirc_query<S>(&self, message: S) -> Result<()>
     where
         S: Into<String>,

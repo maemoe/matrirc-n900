@@ -70,7 +70,7 @@ impl SourceUri for MediaSource {
     }
 }
 
-async fn process_message_like_to_str(
+pub async fn process_message_like_to_str(
     event: &OriginalSyncRoomMessageEvent,
     matrirc: &Matrirc,
 ) -> (String, IrcMessageType) {

@@ -1,3 +1,11 @@
 /target/
 **/*.rs.bk
 config.toml
+data/state/crt/session
+data/state/crt/sqlite_store/matrix-sdk-crypto.sqlite3
+data/state/crt/sqlite_store/matrix-sdk-crypto.sqlite3-shm
+data/state/crt/sqlite_store/matrix-sdk-crypto.sqlite3-wal
+data/state/crt/sqlite_store/matrix-sdk-state.sqlite3
+data/state/crt/sqlite_store/matrix-sdk-state.sqlite3-shm
+data/state/crt/sqlite_store/matrix-sdk-state.sqlite3-wal
+start.sh

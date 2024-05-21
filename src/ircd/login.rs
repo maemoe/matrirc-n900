@@ -48,9 +48,10 @@ pub async fn auth_loop(
             nick
         )))
         .await?;
-    // XXX spawn a task to handle just ping? what about other messages from irc client, queue
-    // somewhere?... note probably not safe to use tokio::select! or similar as
-    // matrix_restore_session or login loop probably aren't cancel-safe
+
+    // Ensure the user joins the "startpoint" private channel upon logging in
+    stream.send(proto::privmsg("startpoint", "startpoint".to_string(), "You are now in the startpoint private message channel")).await?;
+
     info!("Processing login from {}!{}", nick, user);
     let client = match state::login(&nick, &pass)? {
         Some(session) => matrix_restore_session(stream, &nick, &pass, session).await?,

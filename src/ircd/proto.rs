@@ -12,6 +12,7 @@ use tokio_util::codec::Framed;
 
 use crate::{matrirc::Matrirc, matrix::MatrixMessageType};
 
+
 /// it's a bit of a pain to redo the work twice for notice/privmsg,
 /// so these types wrap it around a bit
 #[derive(Debug, Clone)]
@@ -176,30 +177,43 @@ pub async fn ircd_sync_read(
         };
         trace!("Got message {}", message);
         match message.command.clone() {
-            Command::PING(server, server2) => matrirc.irc().send(pong(server, server2)).await?,
-            Command::PRIVMSG(target, msg) => {
-                let (message_type, msg) = if let Some(emote) = msg.strip_prefix("\u{001}ACTION ") {
-                    (MatrixMessageType::Emote, emote.to_string())
+
+            Command::PING(server, server2) => {
+                if message.response_target() == Some("startpoint") {
+                    matrirc.irc().send(pong(server, server2)).await?;
                 } else {
-                    (MatrixMessageType::Text, msg)
-                };
-                if let Err(e) = matrirc
-                    .mappings()
-                    .to_matrix(&target, message_type, msg)
-                    .await
-                {
-                    warn!("Could not forward message: {:?}", e);
-                    if let Err(e2) = matrirc
-                        .irc()
-                        .send(notice(
-                            &matrirc.irc().nick,
-                            message.response_target().unwrap_or("matrirc"),
-                            format!("Could not forward: {}", e),
-                        ))
-                        .await
-                    {
-                        warn!("Furthermore, reply errored too: {:?}", e2);
+                    matrirc.irc().send(pong(server, server2)).await?;
+                }
+            }
+            Command::PRIVMSG(target, msg) => {
+                if target == "startpoint" {
+                    if msg == "ping" {
+                        let response = privmsg("startpoint".to_string(), target.clone(), "pong");
+                        matrirc.irc().send(response).await?;
+                    } else if msg == "hello" {
+                        let response = privmsg("startpoint".to_string(), target.clone(), "world");
+                        matrirc.irc().send(response).await?;
+                    } else if msg == "hello" {
+                        let response = privmsg("startpoint".to_string(), target.clone(), "world");
+                        matrirc.irc().send(response).await?;
+                    } else if msg == "sync" {
+                        match matrirc.mappings().sync_rooms(&matrirc).await {
+                            Ok(_) => {
+                                // Push all channels to IRC client again
+                                let room_targets = matrirc.mappings().get_room_targets().await;
+                                for room_target in room_targets {
+                                    let _ = room_target.join_channel(matrirc.irc()).await;
+                                }
+                                let response = privmsg("startpoint".to_string(), target.clone(), "Sync completed successfully. Channels rejoined.");
+                                matrirc.irc().send(response).await?;
+                            }
+                            Err(e) => {
+                                let response = privmsg("startpoint".to_string(), target.clone(), format!("Sync failed: {}", e));
+                                matrirc.irc().send(response).await?;
+                            }
+                        }
                     }
+                    
                 }
             }
             Command::NOTICE(target, msg) => {
