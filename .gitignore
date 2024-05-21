@@ -1,6 +1,7 @@
 /target/
 **/*.rs.bk
 config.toml
+/data/
 data/state/crt/session
 data/state/crt/sqlite_store/matrix-sdk-crypto.sqlite3
 data/state/crt/sqlite_store/matrix-sdk-crypto.sqlite3-shm

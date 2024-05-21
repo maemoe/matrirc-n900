@@ -208,18 +208,25 @@ pub async fn ircd_sync_read(
                                 matrirc.irc().send(response).await?;
                             }
                         }
-                    } else if msg.starts_with("say ") {
-                        let message = msg.strip_prefix("say ").unwrap_or("").to_string();
-                        // Use the Text variant here
-                        if let Err(e) = matrirc
-                            .mappings()
-                            .to_matrix(&target, MatrixMessageType::Text, message)
-                            .await
-                        {
-                            warn!("Could not forward message: {:?}", e);
+                    } else if msg == "backfill" {
+                        // Trigger the backfill operation
+                        match matrirc.mappings().sync_recent_messages(&matrirc).await {
+                            Ok(_) => {
+                                let response = privmsg("startpoint".to_string(), target.clone(), "Backfill completed successfully.");
+                                matrirc.irc().send(response).await?;
+                            }
+                            Err(e) => {
+                                let response = privmsg("startpoint".to_string(), target.clone(), format!("Backfill failed: {}", e));
+                                matrirc.irc().send(response).await?;
+                            }
                         }
+                    } else {
+                        let response = privmsg("startpoint".to_string(), target.clone(), "Command not recognized.");
+                        matrirc.irc().send(response).await?;
                     }
-                } else {
+                }
+                
+                 else {
                     let (message_type, msg) = if let Some(emote) = msg.strip_prefix("\u{001}ACTION ") {
                         (MatrixMessageType::Emote, emote.to_string())
                     } else {

@@ -3,8 +3,8 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use log::{trace, warn};
 use matrix_sdk::{
-    room::Room,
-    ruma::{OwnedRoomId, OwnedUserId},
+    room::{MessagesOptions, Room},
+    ruma::{events::room::message::OriginalSyncRoomMessageEvent, OwnedRoomId, OwnedUserId},
     RoomMemberships,
 };
 use regex::Regex;
@@ -23,6 +23,8 @@ use crate::ircd::{
     IrcClient,
 };
 use crate::matrirc::Matrirc;
+
+use super::sync_room_message::process_message_like_to_str;
 
 pub enum MatrixMessageType {
     Text,
@@ -540,6 +542,25 @@ impl Mappings {
             self.try_room_target(&Room::Joined(joined)).await?;
         }
         self.matrirc_query("Finished initial room sync").await?;
+        Ok(())
+    }
+
+    pub async fn sync_recent_messages(&self, matrirc: &Matrirc) -> Result<()> {
+        let client = matrirc.matrix();
+        let rooms = client.joined_rooms(); // Assuming this provides Vec<Joined>
+
+        for joined in rooms {
+            let room_id = joined.room_id().to_owned();
+            if let Some(room_target) = self.inner.read().await.rooms.get(&room_id) {
+                let messages_result = joined.messages(MessagesOptions::backward()).await?;
+                for message in messages_result.chunk {
+                    if let Ok(event) = message.event.deserialize_as::<OriginalSyncRoomMessageEvent>() {
+                        let (formatted_message, message_type) = process_message_like_to_str(&event, matrirc).await;
+                        room_target.send_text_to_irc(matrirc.irc(), message_type, &event.sender.to_string(), formatted_message).await?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 }

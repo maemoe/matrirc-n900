@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 use crate::matrix::room_mappings::Mappings;
 use crate::{ircd, ircd::IrcClient};
 
+
 /// client state struct
 #[derive(Clone)]
 pub struct Matrirc {
